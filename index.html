@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<!-- Chosen Palette: Neutral Harmony -->
+<!-- Application Structure Plan: A classic dashboard layout is chosen for its intuitive user experience. A fixed vertical sidebar provides clear, persistent navigation between the application's main sections (Dashboard, Analytics, etc.). The main content area dynamically displays the selected section, facilitated by JavaScript. This Single Page Application (SPA) approach ensures fast, seamless transitions without page reloads. A global header contains the notification center, making it accessible from any section. This structure is standard for management applications, ensuring users can navigate efficiently and find information logically. -->
+<!-- Visualization & Content Choices: 
+- Dashboard (Real-time Status): Goal: At-a-glance monitoring. Method: Four prominent "stat cards" for key metrics and a multi-line Chart.js graph to show trends. Interaction: The chart and cards will simulate real-time updates every few seconds. Justification: This dual approach provides both immediate snapshot data and trend visualization, crucial for operational awareness.
+- Analytics (Historical Data): Goal: Review past performance. Method: A Pikaday.js calendar for date selection, which populates a historical Chart.js graph. Interaction: User selects a date to load the corresponding data. Justification: A calendar is the most intuitive interface for date-based data retrieval.
+- Alerts (Notifications): Goal: Inform of critical events. Method: A bell icon in the header toggles a dropdown list of alerts. Interaction: Users can view and dismiss individual alerts. Justification: This is a universal and non-intrusive UI pattern for managing notifications.
+- Settings (Customization): Goal: User personalization. Method: A standard form with toggles and select dropdowns. Interaction: Selections immediately apply changes via JavaScript (e.g., toggling a 'dark' class, changing root font size). Justification: A form is the clearest way to present configuration options.
+- Help/Chatbot (Support): Goal: Provide assistance. Method: Accordions for FAQs and a standard chat interface. Interaction: Users expand FAQs or type questions to the chatbot. Justification: These are space-efficient and universally understood interfaces for support content.
+-->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onion Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pikaday/pikaday.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <style>
+        :root {
+            --font-size: 16px;
+            --font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            font-size: var(--font-size);
+            font-family: var(--font-family);
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .pika-single {
+            background-color: #fff;
+            border-color: #e2e8f0;
+        }
+        .dark .pika-single {
+            background-color: #334155;
+            border-color: #475569;
+            color: #e2e8f0;
+        }
+        .dark .pika-select-year, .dark .pika-select-month { color: #e2e8f0; background-color: #475569;}
+        .dark .pika-button { color: #e2e8f0; }
+        .dark .is-today .pika-button { color: #38bdf8; }
+        .dark .is-selected .pika-button { background-color: #0ea5e9; box-shadow: none; }
+        .dark .pika-table th { color: #cbd5e1; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+    <div class="flex h-screen">
+        <aside class="w-64 bg-white dark:bg-slate-800 shadow-md flex-shrink-0 flex flex-col">
+            <div class="h-16 flex items-center justify-center border-b border-slate-200 dark:border-slate-700">
+                <i data-feather="grid" class="text-cyan-600"></i>
+                <h1 class="text-xl font-bold ml-2">CropVerse</h1>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="#dashboard" class="nav-link flex items-center px-4 py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i data-feather="home" class="w-5 h-5 mr-3"></i> Dashboard
+                </a>
+                <a href="#analytics" class="nav-link flex items-center px-4 py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i data-feather="bar-chart-2" class="w-5 h-5 mr-3"></i> Analytics
+                </a>
+                <a href="#help" class="nav-link flex items-center px-4 py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i data-feather="help-circle" class="w-5 h-5 mr-3"></i> Help & Resources
+                </a>
+                <a href="#chatbot" class="nav-link flex items-center px-4 py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i data-feather="message-circle" class="w-5 h-5 mr-3"></i> AI Chatbot
+                </a>
+                <a href="#settings" class="nav-link flex items-center px-4 py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i data-feather="settings" class="w-5 h-5 mr-3"></i> Settings
+                </a>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-end px-6">
+                <div class="relative">
+                    <button id="bell-icon" class="relative text-slate-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400">
+                        <i data-feather="bell"></i>
+                        <span id="notification-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                    </button>
+                    <div id="notification-panel" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-10">
+                        <div class="p-4 font-semibold border-b border-slate-200 dark:border-slate-700">Notifications</div>
+                        <div id="notification-list" class="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+                            <!-- Notifications will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 dark:bg-slate-900 p-6">
+                
+                <div id="page-dashboard" class="page-content">
+                    <h2 class="text-2xl font-bold mb-6">Real-time Dashboard</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-cyan-100 dark:bg-cyan-900">
+                                    <i data-feather="thermometer" class="text-cyan-600 dark:text-cyan-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Temperature</p>
+                                    <p id="temp-value" class="text-2xl font-bold">24.5 °C</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900">
+                                    <i data-feather="droplet" class="text-emerald-600 dark:text-emerald-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Humidity</p>
+                                    <p id="humidity-value" class="text-2xl font-bold">68 %</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-amber-100 dark:bg-amber-900">
+                                    <i data-feather="wind" class="text-amber-600 dark:text-amber-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Methane</p>
+                                    <p id="methane-value" class="text-2xl font-bold">5 ppm</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                             <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-violet-100 dark:bg-violet-900">
+                                    <i data-feather="activity" class="text-violet-600 dark:text-violet-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Other Gases</p>
+                                    <p id="gas-value" class="text-2xl font-bold">12 ppm</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                             <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-rose-100 dark:bg-rose-900">
+                                    <i data-feather="loader" class="text-rose-600 dark:text-rose-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Exhaust Fan</p>
+                                    <p id="fan-status" class="text-2xl font-bold text-green-500">ON</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                         <div class="chart-container" style="position: relative; height:40vh; width:100%; max-width: none;">
+                            <canvas id="realtimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-analytics" class="page-content hidden">
+                    <h2 class="text-2xl font-bold mb-6">Historical Analytics</h2>
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                        <div class="mb-4">
+                            <label for="datepicker" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Select a date to view historical data:</label>
+                            <input type="text" id="datepicker" class="bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 w-full md:w-1/2 lg:w-1/3">
+                        </div>
+                        <p id="analytics-date-display" class="mb-4 text-lg">Showing data for: <span class="font-semibold">Today</span></p>
+                        <div class="chart-container" style="position: relative; height:40vh; width:100%; max-width: none;">
+                            <canvas id="historicalChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="page-help" class="page-content hidden">
+                    <h2 class="text-2xl font-bold mb-6">Help & Resources</h2>
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                            <h3 class="text-xl font-semibold mb-4">Frequently Asked Questions (FAQs)</h3>
+                            <div class="space-y-4" id="faq-container">
+                                <!-- FAQs will be injected here -->
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                            <h3 class="text-xl font-semibold mb-4">Reference Materials</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                                    <h4 class="font-semibold mb-2">Optimal Storage Conditions</h4>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">Learn about the ideal temperature, humidity, and airflow for long-term onion storage.</p>
+                                    <button class="text-cyan-600 dark:text-cyan-400 text-sm font-semibold hover:underline">Watch Video</button>
+                                    <button class="ml-4 text-cyan-600 dark:text-cyan-400 text-sm font-semibold hover:underline">Read Article</button>
+                                </div>
+                                <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                                    <h4 class="font-semibold mb-2">Identifying Spoilage</h4>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">A guide to recognizing early signs of rot, mold, and sprouting in stored onions.</p>
+                                    <button class="text-cyan-600 dark:text-cyan-400 text-sm font-semibold hover:underline">Watch Video</button>
+                                    <button class="ml-4 text-cyan-600 dark:text-cyan-400 text-sm font-semibold hover:underline">Read Article</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-chatbot" class="page-content hidden">
+                    <h2 class="text-2xl font-bold mb-6">AI Assistant</h2>
+                    <div class="bg-white dark:bg-slate-800 rounded-lg shadow h-[70vh] flex flex-col">
+                        <div id="chat-messages" class="flex-1 p-6 overflow-y-auto">
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 rounded-full bg-cyan-100 dark:bg-cyan-900 self-start">
+                                    <i data-feather="cpu" class="text-cyan-600 dark:text-cyan-400 w-5 h-5"></i>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 max-w-lg">
+                                    <p>Hello! I'm your OnionCtrl AI assistant. How can I help you today? You can ask me about storage conditions, how to interpret data, or features of this application.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-slate-700 p-4">
+                            <form id="chat-form" class="flex items-center gap-4">
+                                <input type="text" id="chat-input" placeholder="Ask a question..." class="flex-1 bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-cyan-500 focus:border-cyan-500 block w-full rounded-md" autocomplete="off">
+                                <button type="submit" class="bg-cyan-600 text-white rounded-md p-2 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-800">
+                                    <i data-feather="send" class="w-5 h-5"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-settings" class="page-content hidden">
+                    <h2 class="text-2xl font-bold mb-6">Settings</h2>
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow space-y-8">
+                        <div>
+                            <h3 class="text-lg font-medium">Appearance</h3>
+                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="flex items-center justify-between">
+                                    <label for="theme-toggle" class="text-sm font-medium">Dark Mode</label>
+                                    <button id="theme-toggle" class="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-800 bg-slate-200">
+                                        <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"></span>
+                                    </button>
+                                </div>
+                                <div>
+                                    <label for="font-size" class="block text-sm font-medium mb-1">Font Size</label>
+                                    <select id="font-size" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2">
+                                        <option value="14px">Small</option>
+                                        <option value="16px" selected>Medium</option>
+                                        <option value="18px">Large</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="font-family" class="block text-sm font-medium mb-1">Font Family</label>
+                                    <select id="font-family" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2">
+                                        <option value="'Inter', sans-serif" selected>Inter (Sans-serif)</option>
+                                        <option value="'Georgia', serif">Georgia (Serif)</option>
+                                        <option value="'Courier New', monospace">Courier (Monospace)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                             <h3 class="text-lg font-medium">Accessibility</h3>
+                             <div class="mt-4 flex items-center justify-between">
+                                <label for="colorblind-mode" class="text-sm font-medium">Colorblind Friendly Chart Colors</label>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" id="colorblind-mode" value="" class="sr-only peer">
+                                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                         <div>
+                             <h3 class="text-lg font-medium">Language</h3>
+                             <div class="mt-4">
+                                 <select id="language-select" class="w-full md:w-1/2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2">
+                                    <option value="en" selected>English</option>
+                                    <option value="es">Español</option>
+                                    <option value="fr">Français</option>
+                                    <option value="hi">हिन्दी</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pages = document.querySelectorAll('.page-content');
+
+            function navigateTo(hash) {
+                pages.forEach(page => page.classList.add('hidden'));
+                navLinks.forEach(link => link.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'font-semibold'));
+                
+                const targetPage = document.getElementById(`page-${hash.substring(1)}`);
+                const targetLink = document.querySelector(`.nav-link[href="${hash}"]`);
+
+                if (targetPage) {
+                    targetPage.classList.remove('hidden');
+                } else {
+                    document.getElementById('page-dashboard').classList.remove('hidden');
+                }
+
+                if (targetLink) {
+                    targetLink.classList.add('bg-slate-100', 'dark:bg-slate-700', 'font-semibold');
+                } else {
+                     document.querySelector('.nav-link[href="#dashboard"]').classList.add('bg-slate-100', 'dark:bg-slate-700', 'font-semibold');
+                }
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const hash = new URL(link.href).hash;
+                    window.location.hash = hash;
+                });
+            });
+
+            window.addEventListener('hashchange', () => {
+                navigateTo(window.location.hash || '#dashboard');
+            });
+            
+            navigateTo(window.location.hash || '#dashboard');
+
+
+            feather.replace();
+
+            const createChart = (ctx, type, data, options) => new Chart(ctx, { type, data, options });
+            
+            let colorblindMode = false;
+            const standardColors = {
+                temp: 'rgba(59, 130, 246, 1)',
+                humidity: 'rgba(16, 185, 129, 1)',
+                methane: 'rgba(245, 158, 11, 1)',
+                other: 'rgba(139, 92, 246, 1)',
+            };
+            const colorblindColors = {
+                temp: 'rgba(0, 114, 178, 1)',    // Blue
+                humidity: 'rgba(213, 94, 0, 1)',  // Vermillion
+                methane: 'rgba(0, 158, 115, 1)', // Bluish Green
+                other: 'rgba(240, 228, 66, 1)',   // Yellow
+            };
+            const getChartColors = () => colorblindMode ? colorblindColors : standardColors;
+
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#64748b' } },
+                    y: { ticks: { color: '#64748b' } }
+                },
+                plugins: { legend: { labels: { color: '#64748b' } } }
+            };
+
+            const realtimeCtx = document.getElementById('realtimeChart').getContext('2d');
+            const realtimeChartData = {
+                labels: Array(10).fill().map((_, i) => new Date(Date.now() - (9 - i) * 5000).toLocaleTimeString()),
+                datasets: [
+                    { label: 'Temperature (°C)', data: [], borderColor: getChartColors().temp, tension: 0.3, fill: false },
+                    { label: 'Humidity (%)', data: [], borderColor: getChartColors().humidity, tension: 0.3, fill: false },
+                    { label: 'Methane (ppm)', data: [], borderColor: getChartColors().methane, tension: 0.3, fill: false },
+                    { label: 'Other Gases (ppm)', data: [], borderColor: getChartColors().other, tension: 0.3, fill: false }
+                ]
+            };
+            let realtimeChart = createChart(realtimeCtx, 'line', realtimeChartData, chartOptions);
+
+            const tempValue = document.getElementById('temp-value');
+            const humidityValue = document.getElementById('humidity-value');
+            const methaneValue = document.getElementById('methane-value');
+            const gasValue = document.getElementById('gas-value');
+            const fanStatus = document.getElementById('fan-status');
+
+            const generateInitialData = (count) => Array(count).fill().map(() => Math.random() * 50);
+            realtimeChart.data.datasets.forEach(ds => ds.data = generateInitialData(10));
+            realtimeChart.update();
+            
+            const updateChartColors = () => {
+                const tickColor = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569';
+                const legendColor = document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#334155';
+                
+                [realtimeChart, historicalChart].forEach(chart => {
+                    if(!chart) return;
+                    chart.options.scales.x.ticks.color = tickColor;
+                    chart.options.scales.y.ticks.color = tickColor;
+                    chart.options.plugins.legend.labels.color = legendColor;
+
+                    chart.data.datasets.forEach((ds, i) => {
+                        const key = ds.label.split(' ')[0].toLowerCase();
+                        ds.borderColor = getChartColors()[key] || '#ccc';
+                    });
+                    chart.update();
+                });
+            };
+
+            setInterval(() => {
+                const newLabel = new Date().toLocaleTimeString();
+                realtimeChart.data.labels.push(newLabel);
+                realtimeChart.data.labels.shift();
+
+                const newTemp = (24 + Math.random() * 2).toFixed(1);
+                const newHumidity = (65 + Math.random() * 5).toFixed(0);
+                const newMethane = (4 + Math.random() * 2).toFixed(0);
+                const newGas = (10 + Math.random() * 5).toFixed(0);
+
+                tempValue.textContent = `${newTemp} °C`;
+                humidityValue.textContent = `${newHumidity} %`;
+                methaneValue.textContent = `${newMethane} ppm`;
+                gasValue.textContent = `${newGas} ppm`;
+                
+                if (Math.random() > 0.5) {
+                    fanStatus.textContent = 'ON';
+                    fanStatus.classList.remove('text-red-500');
+                    fanStatus.classList.add('text-green-500');
+                } else {
+                    fanStatus.textContent = 'OFF';
+                    fanStatus.classList.remove('text-green-500');
+                    fanStatus.classList.add('text-red-500');
+                }
+
+                realtimeChart.data.datasets[0].data.push(parseFloat(newTemp));
+                realtimeChart.data.datasets[1].data.push(parseInt(newHumidity));
+                realtimeChart.data.datasets[2].data.push(parseInt(newMethane));
+                realtimeChart.data.datasets[3].data.push(parseInt(newGas));
+
+                realtimeChart.data.datasets.forEach(ds => ds.data.shift());
+                realtimeChart.update('none');
+
+            }, 5000);
+            
+            let historicalChart = null;
+            const historicalCtx = document.getElementById('historicalChart').getContext('2d');
+            const analyticsDateDisplay = document.getElementById('analytics-date-display').querySelector('span');
+
+            function updateHistoricalChart(date) {
+                if (historicalChart) {
+                    historicalChart.destroy();
+                }
+                 analyticsDateDisplay.textContent = date.toDateString();
+
+                const historicalData = {
+                     labels: Array(24).fill().map((_, i) => `${i}:00`),
+                     datasets: [
+                        { label: 'Temperature (°C)', data: Array(24).fill().map(() => (20 + Math.random() * 10).toFixed(1)), borderColor: getChartColors().temp, tension: 0.3, fill: false },
+                        { label: 'Humidity (%)', data: Array(24).fill().map(() => (60 + Math.random() * 15).toFixed(0)), borderColor: getChartColors().humidity, tension: 0.3, fill: false },
+                    ]
+                };
+                historicalChart = createChart(historicalCtx, 'line', historicalData, chartOptions);
+            }
+            
+            const picker = new Pikaday({
+                field: document.getElementById('datepicker'),
+                onSelect: function(date) {
+                    updateHistoricalChart(date);
+                }
+            });
+            updateHistoricalChart(new Date());
+
+
+            const bellIcon = document.getElementById('bell-icon');
+            const notificationPanel = document.getElementById('notification-panel');
+            const notificationList = document.getElementById('notification-list');
+            const notificationBadge = document.getElementById('notification-badge');
+
+            const notifications = [
+                { id: 1, type: 'high_temp', msg: 'High temperature detected in Zone A.', time: '2m ago' },
+                { id: 2, type: 'methane', msg: 'Methane levels are above the threshold.', time: '15m ago' },
+                { id: 3, type: 'fan_fail', msg: 'Exhaust fan in Zone B is not responding.', time: '1h ago' },
+            ];
+            
+            function renderNotifications() {
+                notificationList.innerHTML = '';
+                notifications.forEach(n => {
+                    const div = document.createElement('div');
+                    div.className = 'p-4 flex items-start gap-3 hover:bg-slate-100 dark:hover:bg-slate-700';
+                    div.innerHTML = `
+                        <div class="p-2 rounded-full bg-red-100 dark:bg-red-900 self-start">
+                            <i data-feather="alert-triangle" class="text-red-600 dark:text-red-400 w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm">${n.msg}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${n.time}</p>
+                        </div>
+                    `;
+                    notificationList.appendChild(div);
+                });
+                if(notifications.length === 0){
+                    notificationList.innerHTML = `<p class="p-4 text-sm text-center text-slate-500">No new notifications.</p>`;
+                }
+                notificationBadge.textContent = notifications.length;
+                notificationBadge.classList.toggle('hidden', notifications.length === 0);
+                feather.replace();
+            }
+
+            bellIcon.addEventListener('click', () => {
+                notificationPanel.classList.toggle('hidden');
+            });
+            renderNotifications();
+
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            const toggleButtonSpan = themeToggle.querySelector('span');
+
+            const applyTheme = (theme) => {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    toggleButtonSpan.style.transform = 'translateX(1.25rem)';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    toggleButtonSpan.style.transform = 'translateX(0)';
+                }
+                updateChartColors();
+            };
+            
+            themeToggle.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.contains('dark');
+                applyTheme(isDark ? 'light' : 'dark');
+            });
+            
+            applyTheme('light');
+
+            document.getElementById('font-size').addEventListener('change', (e) => {
+                document.body.style.fontSize = e.target.value;
+            });
+            document.getElementById('font-family').addEventListener('change', (e) => {
+                document.body.style.fontFamily = e.target.value;
+            });
+
+            
+            document.getElementById('colorblind-mode').addEventListener('change', (e) => {
+                colorblindMode = e.target.checked;
+                updateChartColors();
+            });
+
+            const faqs = [
+                { q: "How do I check historical data?", a: "Navigate to the 'Analytics' page from the side menu. Use the calendar to select a specific date, and the chart will update automatically." },
+                { q: "What do the different colors on the dashboard chart mean?", a: "Each color represents a different environmental metric: blue for Temperature, green for Humidity, orange for Methane, and purple for Other Gases. You can see the key in the legend below the chart." },
+                { q: "Can I use this application on my mobile device?", a: "Yes, the application is fully responsive and designed to work on desktops, tablets, and mobile phones." },
+            ];
+
+            const faqContainer = document.getElementById('faq-container');
+            faqs.forEach(faq => {
+                const div = document.createElement('div');
+                div.className = 'border-b border-slate-200 dark:border-slate-700 pb-4';
+                div.innerHTML = `
+                    <button class="w-full text-left flex justify-between items-center">
+                        <span class="font-medium">${faq.q}</span>
+                        <i data-feather="chevron-down" class="transition-transform"></i>
+                    </button>
+                    <div class="mt-2 text-slate-600 dark:text-slate-400 hidden">
+                        ${faq.a}
+                    </div>
+                `;
+                faqContainer.appendChild(div);
+            });
+            faqContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+                const answer = button.nextElementSibling;
+                const icon = button.querySelector('i');
+                answer.classList.toggle('hidden');
+                icon.classList.toggle('rotate-180');
+            });
+
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const chatMessages = document.getElementById('chat-messages');
+
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const message = chatInput.value.trim();
+                if (!message) return;
+                
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'flex items-start gap-3 justify-end';
+                userMessageDiv.innerHTML = `
+                    <div class="bg-cyan-600 text-white rounded-lg p-3 max-w-lg">
+                        <p>${message}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(userMessageDiv);
+
+                chatInput.value = '';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                setTimeout(() => {
+                    const aiResponseDiv = document.createElement('div');
+                    aiResponseDiv.className = 'flex items-start gap-3';
+                    aiResponseDiv.innerHTML = `
+                        <div class="p-2 rounded-full bg-cyan-100 dark:bg-cyan-900 self-start">
+                           <i data-feather="cpu" class="text-cyan-600 dark:text-cyan-400 w-5 h-5"></i>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 max-w-lg">
+                            <p>Thank you for your question. Based on current best practices, maintaining a consistent temperature around 25°C is ideal for onion storage. You can monitor this on the dashboard.</p>
+                        </div>
+                    `;
+                    chatMessages.appendChild(aiResponseDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    feather.replace();
+                }, 1000);
+            });
+            
+            updateChartColors();
+        });
+    </script>
+</body>
+</html>
